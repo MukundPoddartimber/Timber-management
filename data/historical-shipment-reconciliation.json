@@ -1,0 +1,114 @@
+{
+  "status": "reconciliation_pending",
+  "shipments": 20,
+  "entries": 794,
+  "total_cbm": 651714.148,
+  "fields": [
+    "vessel",
+    "buyer",
+    "BL",
+    "CBM"
+  ],
+  "vessels": [
+    {
+      "vessel": "African Merlin",
+      "entries": 39,
+      "cbm": 35144.566
+    },
+    {
+      "vessel": "African Piper",
+      "entries": 49,
+      "cbm": 33983.201
+    },
+    {
+      "vessel": "African Quail",
+      "entries": 50,
+      "cbm": 33734.067
+    },
+    {
+      "vessel": "Alberto Topic",
+      "entries": 48,
+      "cbm": 33182.776
+    },
+    {
+      "vessel": "Allegra",
+      "entries": 46,
+      "cbm": 34730.439
+    },
+    {
+      "vessel": "Billion Star",
+      "entries": 21,
+      "cbm": 14768.513
+    },
+    {
+      "vessel": "Bunun Respect",
+      "entries": 45,
+      "cbm": 36764.696
+    },
+    {
+      "vessel": "Core Sky",
+      "entries": 26,
+      "cbm": 32585.442
+    },
+    {
+      "vessel": "Drake Well — 1",
+      "entries": 41,
+      "cbm": 27442.774
+    },
+    {
+      "vessel": "Drake Well — 2",
+      "entries": 37,
+      "cbm": 26067.069
+    },
+    {
+      "vessel": "Fiora Topic",
+      "entries": 52,
+      "cbm": 33187.56
+    },
+    {
+      "vessel": "Kibo",
+      "entries": 46,
+      "cbm": 34480.815
+    },
+    {
+      "vessel": "Lignum Web — 1",
+      "entries": 30,
+      "cbm": 36755.355
+    },
+    {
+      "vessel": "Lignum Web — 2",
+      "entries": 43,
+      "cbm": 38741.383
+    },
+    {
+      "vessel": "Lowlands Corso",
+      "entries": 42,
+      "cbm": 37645.043
+    },
+    {
+      "vessel": "Paiwan Ace — 1",
+      "entries": 39,
+      "cbm": 36172.266
+    },
+    {
+      "vessel": "Paiwan Ace — 2",
+      "entries": 44,
+      "cbm": 33799.657
+    },
+    {
+      "vessel": "Ruby Confidence",
+      "entries": 23,
+      "cbm": 31947.591
+    },
+    {
+      "vessel": "Sunny Hong",
+      "entries": 45,
+      "cbm": 32164.569
+    },
+    {
+      "vessel": "Zhe Hai",
+      "entries": 28,
+      "cbm": 28416.366
+    }
+  ]
+}
