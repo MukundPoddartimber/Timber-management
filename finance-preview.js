@@ -21,6 +21,7 @@ const cards=[
   ['Sales',fmt(result.total)],
   ['Received',fmt(result.received)],
   ['Outstanding',fmt(Math.max(0,result.total-result.received))],
+  ['Despatch credit',fmt(result.despatch)],
   ['CFR purchase cost',result.cfr!==null?fmt(result.cfr):'—'],
   ['Purchase + recorded expenses',fmt(result.cfr===null?result.recordedExpenses:result.cfr+result.additionalExpenses)],
   ['Net profit / loss',!scoped?'Outside profit period':result.net===null?'Awaiting CFR and invoice data':fmt(result.net)],
@@ -54,8 +55,9 @@ total+=invoice;received+=paid;interest+=cost;lcCost+=lc;dpCost+=dp;return !inclu
 const additionalExpenses=['port_charges_usd','demurrage_usd','other_expenses_usd'].reduce((sum,key)=>sum+num(finance[key]),0);
 const recordedExpenses=additionalExpenses+num(finance.purchase_amount_usd)+num(finance.freight_usd);
 const cfr=num(finance.cfr_purchase_usd)>0?num(finance.cfr_purchase_usd):null;
-const net=cfr===null||sales.length===0?null:total-cfr-additionalExpenses-lcCost-dpCost-interest;
-return {rows,total,received,lcCost,dpCost,interest,cfr,net,recordedExpenses,additionalExpenses};
+const despatch=num(finance.despatch_credit_usd);
+const net=cfr===null||sales.length===0?null:total-cfr-additionalExpenses-lcCost-dpCost-interest+despatch;
+return {rows,total,received,lcCost,dpCost,interest,cfr,net,despatch,recordedExpenses,additionalExpenses};
 }
 function renderCards(cards){
   return cards.map(([label,value])=>'<div class="card">'+escape(label)+'<strong>'+escape(value)+'</strong></div>').join('');
