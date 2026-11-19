@@ -109,6 +109,29 @@ function renderDrakeAllocation(vesselName){
   if(cloudName(vesselName)!==cloudName(v.name))return '';
   return '<details><summary>Drake Well cargo allocation and buyer complaints · '+v.pieces.toLocaleString()+' pieces</summary><div class="tablewrap"><table><thead><tr><th>BL No.</th><th>Lot No.</th><th>Buyer</th><th>Product</th><th>Pieces</th><th>CBM</th></tr></thead><tbody>'+v.entries.map(x=>'<tr>'+x.slice(0,3).map(y=>'<td>'+esc(y)+'</td>').join('')+'<td><strong>'+(drakeEucalyptusBLs.has(x[0])?'Eucalyptus Logs':'Pine Logs')+'</strong></td>'+x.slice(3).map(y=>'<td>'+esc(y)+'</td>').join('')+'</tr>').join('')+'</tbody></table></div><section class="complaints-section"><h3>Buyer Complaints — MV DRAKE WELL</h3><table><thead><tr><th>Buyer</th><th>BL No.</th><th>Product</th><th>Complaint</th><th>Status</th></tr></thead><tbody><tr><td>SIPL Plywood Pvt. Ltd.</td><td>DW/KDL/1AA, DW/KDL/2N</td><td>Eucalyptus Logs</td><td>Buyer reported that the quality of this shipment is slightly poor and the logs have more cracks than expected.</td><td>Reported — review pending</td></tr></tbody></table><p>Buyer feedback recorded; no inspection findings or claim amount provided.</p></section></details>';
 }
+const shipmentRegister=new Map([
+  ["MV CHINTANA NAREE",{"order":0,"pieces":113889,"company":"SURBHI","cargo":33263.717}],
+  ["MV CORESKY",{"order":1,"pieces":123466,"company":"SURBHI"}],
+  ["MV ZHE HAI",{"order":2,"pieces":102720,"company":"SURBHI"}],
+  ["MV LIGNUM WEB",{"order":3,"pieces":130534,"company":"SURBHI"}],
+  ["MV RUBY CONFIDENCE",{"order":4,"pieces":113650,"company":"SURBHI"}],
+  ["MV PAIWAN ACE",{"order":5,"pieces":128627,"company":"SURBHI"}],
+  ["MV LIGNUM WEB — SECOND SHIPMENT",{"order":6,"pieces":140795,"company":"SURBHI","cargo":38741.383,"label":"MV LIGNUM GRID"}],
+  ["MV AFRICAN MERLIN",{"order":7,"pieces":115224,"company":"SURBHI"}],
+  ["MV LOWLANDS CORSO",{"order":8,"pieces":124757,"company":"SURBHI"}],
+  ["MV SUNNY HONG",{"order":9,"pieces":112029,"company":"SURBHI"}],
+  ["MV PAIWAN ACE — SECOND SHIPMENT",{"order":10,"pieces":118568,"company":"SURBHI"}],
+  ["MV ALLEGRA",{"order":11,"pieces":127325,"company":"SURBHI"}],
+  ["MV BUNUN RESPECT",{"order":12,"pieces":134240,"company":"SURBHI"}],
+  ["MV BILLION STAR",{"order":13,"pieces":105046,"company":"SURBHI"}],
+  ["MV AFRICAN PIPER",{"order":14,"pieces":121396,"company":"SURBHI"}],
+  ["MV FIORA TOPIC",{"order":15,"pieces":102164,"company":"SURBHI"}],
+  ["MV ALBERTO TOPIC",{"order":16,"pieces":100259,"company":"SURBHI"}],
+  ["MV DRAKE WELL — EARLIER SHIPMENT",{"order":17,"pieces":94574,"company":"S PODDAR"}],
+  ["MV KIBO",{"order":18,"pieces":108129,"company":"S PODDAR"}],
+  ["MV AFRICAN QUAIL",{"order":19,"pieces":100095,"company":"S PODDAR"}],
+  ["MV DRAKE WELL — LATEST SHIPMENT",{"order":20,"pieces":82520,"company":"S PODDAR"}]
+]);
 function renderCloudLedger(){
   const q=$('#search').value.trim().toLowerCase();
   $('#add').style.display=view==='vessels'?'':'none';
@@ -134,17 +157,27 @@ function renderCloudLedger(){
     grouped.get(s.vessel_id).push(s);
   }
   $('#tableTitle').textContent='All vessels · cloud shipments and local operations';
-  $('thead').innerHTML='<tr><th>Vessel</th><th>Arrival</th><th>Cargo CBM</th><th>Invoice CBM</th><th>Details</th></tr>';
-  const vessels=cloudLedger.vessels.filter(v=>v.vessel_name.toLowerCase().includes(q)||grouped.get(v.id)?.some(s=>[s.buyer,s.bl_number,s.invoice_number].some(x=>String(x||'').toLowerCase().includes(q))));
-  const cloudRows=vessels.sort((a,b)=>a.vessel_name.localeCompare(b.vessel_name)).map(v=>{
+  $('thead').innerHTML='<tr><th>Vessel</th><th>Arrival</th><th>PCS</th><th>Cargo CBM</th><th>Invoice CBM</th><th>Company</th><th>Details</th></tr>';
+  const vessels=[...cloudLedger.vessels];
+  if(!vessels.some(v=>cloudName(v.vessel_name)==='MV CHINTANA NAREE')){
+    vessels.push({vessel_name:'MV CHINTANA NAREE',total_cbm:shipmentRegister.get('MV CHINTANA NAREE').cargo});
+  }
+  const rank=v=>shipmentRegister.get(cloudName(v.vessel_name))?.order??Infinity;
+  vessels.sort((a,b)=>(rank(b)-rank(a))||String(b.arrival_date||'').localeCompare(String(a.arrival_date||''))||a.vessel_name.localeCompare(b.vessel_name));
+  const cloudRows=vessels.flatMap(v=>{
     const entries=grouped.get(v.id)||[];
-    const details='<button data-cloud-shipment="'+esc(v.id)+'">View Details</button>';
-    return '<tr>'+[v.vessel_name,v.arrival_date?kandlaDate.format(new Date(v.arrival_date)):'—',v.total_cbm==null?'—':cloudQty(v.total_cbm),cloudQty(entries.reduce((n,s)=>n+Number(s.sale_cbm),0))].map(x=>'<td>'+esc(x)+'</td>').join('')+'<td>'+details+'</td></tr>';
+    const register=shipmentRegister.get(cloudName(v.vessel_name));
+    const label=register?.label||v.vessel_name;
+    const matches=[label,v.vessel_name,...entries.flatMap(s=>[s.buyer,s.bl_number,s.invoice_number])].some(x=>String(x||'').toLowerCase().includes(q));
+    if(!matches)return [];
+    const details=v.id?'<button data-cloud-shipment="'+esc(v.id)+'">View Details</button>':'PDF pending';
+    const values=[label,v.arrival_date?kandlaDate.format(new Date(v.arrival_date)):'—',register?.pieces?.toLocaleString('en-US')||'—',v.total_cbm==null?'—':cloudQty(v.total_cbm),v.id?cloudQty(entries.reduce((n,s)=>n+Number(s.sale_cbm),0)):'—',register?.company||'—'];
+    return '<tr>'+values.map(x=>'<td>'+esc(x)+'</td>').join('')+'<td>'+details+'</td></tr>';
   });
-  const localRows=view==='vessels'?db.vessels.filter(v=>v.name.toLowerCase().includes(q)).map(v=>'<tr><td>'+esc(v.name)+' <small>· Local operations</small></td><td>'+esc(v.eta||'—')+'</td><td>—</td><td>—</td><td><button data-edit="'+esc(v.id)+'">Edit details</button></td></tr>'):[];
-  $('tbody').innerHTML=[...cloudRows,...localRows].join('')||'<tr><td colspan="5">No matching vessels.</td></tr>';
+  const localRows=db.vessels.filter(v=>v.name.toLowerCase().includes(q)).map(v=>'<tr><td>'+esc(v.name)+' <small>· Local operations</small></td><td>'+esc(v.eta||'—')+'</td><td>—</td><td>—</td><td>—</td><td>—</td><td><button data-edit="'+esc(v.id)+'">Edit details</button></td></tr>');
+  $('tbody').innerHTML=[...cloudRows,...localRows].join('')||'<tr><td colspan="7">No matching vessels.</td></tr>';
   const chosen=cloudLedger.vessels.find(v=>v.id===cloudShipment);
-  $('#tableNote').innerHTML=chosen?'<strong>'+esc(chosen.vessel_name)+'</strong>'+renderLaytime(chosen)+renderDrakeAllocation(chosen.vessel_name)+cloudInvoiceTable(grouped.get(chosen.id)||[]):'Select View Details to see buyer, invoice and payment details.';
+  $('#tableNote').innerHTML=chosen?'<strong>'+esc(shipmentRegister.get(cloudName(chosen.vessel_name))?.label||chosen.vessel_name)+'</strong>'+renderLaytime(chosen)+renderDrakeAllocation(chosen.vessel_name)+cloudInvoiceTable(grouped.get(chosen.id)||[]):'Select View Details to see buyer, invoice and payment details.';
 }
 function render(){document.querySelector('nav').innerHTML=Object.keys(names).map((k,i)=>`<button data-view="${k}" class="${view===k?'active':''}"><span>${icons[i]}</span>${k==='overview'?'Overview':k[0].toUpperCase()+k.slice(1)}</button>`).join('');$('#title').textContent=names[view];$('#crumb').textContent=view.toUpperCase();$('#dataStatus').textContent=db.demo?'● DEMO DATA · Saved in this browser':'● YOUR RECORDS · Saved in this browser';const sales=db.sales.filter(s=>s.date<=$('#asof').value),fs=sales.map(s=>financial(s)),sum=k=>fs.reduce((a,f)=>a+f[k],0),stockValue=db.stock.reduce((a,t)=>a+available(t.id)*t.cost,0);$('#metrics').style.display='none';$('#metrics').innerHTML=[['Stock value',money(stockValue),'Current unsold inventory · at cost'],['Sales value',money(sum('total')),'Invoices through selected date'],['Outstanding',money(sum('balance')),'Unpaid principal · through selected date'],['Financial cost',money(sum('cost')),'9% p.a. · overdue principal · ACT/365']].map(x=>`<div class="metric"><div class="label">${x[0]}</div><strong>${x[1]}</strong><small>${x[2]}</small></div>`).join('');$('#overview').innerHTML=view==='overview'?`<div class="overviewgrid"><div class="panel"><span class="eyebrow">INVENTORY MIX</span><h2>Timber on hand</h2>${db.stock.map(t=>`<div class="barrow"><span>${esc(t.species)}</span><b>${available(t.id).toLocaleString()} m³</b></div><div class="bar"><i style="width:${Math.min(100,available(t.id)/Math.max(1,...db.stock.map(x=>available(x.id)))*100)}%"></i></div>`).join('')||'<p>No stock yet. Add your first lot.</p>'}</div><div class="panel"><span class="eyebrow">COLLECTIONS WATCH</span><h2>${fs.filter(f=>f.overdue>0).length} overdue invoices</h2><div class="callout">${money(fs.filter(f=>f.overdue>0).reduce((a,f)=>a+f.balance,0))} overdue principal<br>${Math.max(0,...fs.map(f=>f.overdue))} days · oldest unpaid invoice</div><p>Use Sales to record invoices and Payments to track collections.</p></div></div>`:'';
 const financeFrame=$('#secureFinanceFrame');
