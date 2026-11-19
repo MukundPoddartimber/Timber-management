@@ -50,14 +50,14 @@ async function refreshCloudLedger(){
       fetchCloudRows(auth.client,'vessel_sale_payments','id,sale_id,payment_date,amount_received_usd')
     ]);
     const buyerNames=new Map(buyers.map(b=>[b.id,b.buyer_name]));
-    const vesselNames=new Map(vessels.map(v=>[v.id,v.vessel_name]));
+    const vesselNames=new Map(vessels.map(v=>[v.id,v]));
     const receipts=new Map();
     for(const p of payments){
       const list=receipts.get(p.sale_id)||[];
       list.push(p);
       receipts.set(p.sale_id,list);
     }
-    const entries=sales.map(s=>({...s,buyer:buyerNames.get(s.buyer_id)||'—',vessel:vesselNames.get(s.vessel_id)||'—',receipts:receipts.get(s.id)||[]}));
+    const entries=sales.map(s=>({...s,buyer:buyerNames.get(s.buyer_id)||'—',vessel:vesselNames.get(s.vessel_id)?.vessel_name||'—',arrival:vesselNames.get(s.vessel_id)?.arrival_date,receipts:receipts.get(s.id)||[]}));
     cloudLedger={vessels,entries};
     cloudError='';
   }catch(error){cloudError=error.message||'Cloud records unavailable';}
@@ -66,7 +66,17 @@ async function refreshCloudLedger(){
     if(cloudViews.has(view))render();
   }
 }
+function estimatedDaAcceptance(s,arrival,receipts){
+  if(String(s.payment_terms||'').trim().toUpperCase()!=='DA'||s.acceptance_date||receipts.length||!arrival)return null;
+  const date=new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Kolkata',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date(arrival));
+  return {due:date,end:new Date((day(date)+5)*86400000).toISOString().slice(0,10)};
+}
 function buyerInvoiceDelayCost(s,asOf){
+  const estimate=estimatedDaAcceptance(s,s.arrival,s.receipts);
+  if(estimate){
+    const days=Math.max(0,Math.min(5,day(asOf)-day(estimate.due)));
+    return Number(s.invoice_amount_usd??Number(s.sale_cbm)*Number(s.sale_rate_usd))*days*.09/365;
+  }
   if(s.historical_paid)return 0;
   if(!s.due_date)return null;
   const isLc=/\bLC\b|LETTER OF CREDIT/.test(String(s.payment_terms||'').toUpperCase());
@@ -94,7 +104,7 @@ function cloudInvoiceTable(entries,delayAsOf=null){
     const received=actual.reduce((sum,p)=>sum+Number(p.amount_received_usd),0);
     const status=s.historical_paid||received>=invoice?'Paid':received>0?'Part paid':s.acceptance_date?'Accepted':'Acceptance pending';
     const receipts=actual.map(p=>p.payment_date+' · '+money(Number(p.amount_received_usd))).join(', ');
-    const cells=[s.buyer,s.vessel,s.bl_number||'—',s.invoice_number||'—',cloudQty(s.sale_cbm),money(invoice),s.payment_terms||'—',s.due_date||'—',s.acceptance_date||'—',status,receipts||'—'];
+    const cells=[s.buyer,s.vessel,s.bl_number||'—',s.invoice_number||'—',cloudQty(s.sale_cbm),money(invoice),s.payment_terms||'—',s.due_date||'—',s.acceptance_date||(estimatedDaAcceptance(s,s.arrival,s.receipts)?.end?estimatedDaAcceptance(s,s.arrival,s.receipts).end+' (estimated DA)':'—'),status,receipts||'—'];
     if(delayAsOf){const cost=buyerInvoiceDelayCost(s,delayAsOf);cells.push(cost===null?'—':money(cost));}
     return '<tr>'+cells.map(x=>'<td>'+esc(x)+'</td>').join('')+'</tr>';
   }).join('')+'</tbody></table></div>';
