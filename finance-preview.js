@@ -3,7 +3,7 @@ const profitStartDate='2026-10-27';
 const historicalProfitExclusions=new Set(historicalVessels.slice(0,historicalVessels.indexOf(firstProfitShipment)));
 function inProfitScope(vessel){
   const name=String(vessel.vessel_name||vessel.name||'').trim().toUpperCase();
-  const arrival=vessel.arrival_date?.slice(0,10);
+  const arrival=vessel.arrival_date?new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Kolkata',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date(vessel.arrival_date)):null;
   return !historicalProfitExclusions.has(name)&&(!arrival||arrival>=profitStartDate);
 }
 let data;try{const auth=window.SPODDAR_AUTH;if(!auth)throw Error('Supabase client unavailable');const identity=await auth.getIdentity();if(identity.role!=='owner')throw Error('Owner login required. Sign in on the main dashboard first.');const client=auth.client;async function load(){const names=['vessels','buyers','vessel_finance','vessel_sales','vessel_sale_payments'];const records={};for(const name of names){const rows=[];
