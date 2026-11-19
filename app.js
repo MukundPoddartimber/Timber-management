@@ -66,9 +66,28 @@ async function refreshCloudLedger(){
     if(cloudViews.has(view))render();
   }
 }
-function cloudInvoiceTable(entries){
+function buyerInvoiceDelayCost(s,asOf){
+  if(s.historical_paid)return 0;
+  if(!s.due_date)return null;
+  const isLc=/\bLC\b|LETTER OF CREDIT/.test(String(s.payment_terms||'').toUpperCase());
+  const cutoff=!isLc&&s.acceptance_date&&s.acceptance_date<asOf?s.acceptance_date:asOf;
+  const receipts=s.receipts.filter(p=>p.payment_date<=cutoff).sort((a,b)=>a.payment_date.localeCompare(b.payment_date));
+  let balance=Number(s.invoice_amount_usd??Number(s.sale_cbm)*Number(s.sale_rate_usd));
+  let last=day(s.due_date),cost=0;
+  for(const payment of receipts){
+    if(payment.payment_date>s.due_date){
+      const paidOn=day(payment.payment_date);
+      cost+=Math.max(0,balance)*.09*Math.max(0,paidOn-last)/365;
+      last=paidOn;
+    }
+    balance-=Number(payment.amount_received_usd);
+  }
+  return cost+Math.max(0,balance)*.09*Math.max(0,day(cutoff)-last)/365;
+}
+function cloudInvoiceTable(entries,delayAsOf=null){
   if(!entries.length)return '<p>No cloud invoices recorded for this shipment.</p>';
   const headers=['Buyer','Shipment','BL','Invoice','CBM','Invoice USD','Terms','Due date','Acceptance','Payment status','Recorded receipts'];
+  if(delayAsOf)headers.push('9% delay cost (USD)');
   return '<div class="tablewrap"><table><thead><tr>'+headers.map(h=>'<th>'+h+'</th>').join('')+'</tr></thead><tbody>'+entries.map(s=>{
     const invoice=Number(s.invoice_amount_usd??Number(s.sale_cbm)*Number(s.sale_rate_usd));
     const actual=s.receipts.filter(p=>p.payment_date<=today);
@@ -76,6 +95,7 @@ function cloudInvoiceTable(entries){
     const status=s.historical_paid||received>=invoice?'Paid':received>0?'Part paid':s.acceptance_date?'Accepted':'Acceptance pending';
     const receipts=actual.map(p=>p.payment_date+' · '+money(Number(p.amount_received_usd))).join(', ');
     const cells=[s.buyer,s.vessel,s.bl_number||'—',s.invoice_number||'—',cloudQty(s.sale_cbm),money(invoice),s.payment_terms||'—',s.due_date||'—',s.acceptance_date||'—',status,receipts||'—'];
+    if(delayAsOf){const cost=buyerInvoiceDelayCost(s,delayAsOf);cells.push(cost===null?'—':money(cost));}
     return '<tr>'+cells.map(x=>'<td>'+esc(x)+'</td>').join('')+'</tr>';
   }).join('')+'</tbody></table></div>';
 }
@@ -140,16 +160,17 @@ function renderCloudLedger(){
   $('#dataStatus').title=cloudError;
   const grouped=new Map();
   if(view==='buyers'){
+    const delayAsOf=kandlaDate.format(new Date());
     for(const s of cloudLedger.entries){
       const key=cloudName(s.buyer).replace(/\bPRIVATE\b/g,'PVT').replace(/\bLIMITED\b/g,'LTD').replace(/[^A-Z0-9]/g,'')||s.buyer_id;
       if(!grouped.has(key))grouped.set(key,[]);
       grouped.get(key).push(s);
     }
     $('#tableTitle').textContent='Buyers list · cumulative CBM';
-    $('thead').innerHTML='<tr><th>Buyer</th><th>Purchased CBM</th><th>Shipments</th><th>Invoice / BL entries</th></tr>';
-    const rows=[...grouped.values()].map(entries=>({entries,total:entries.reduce((n,s)=>n+Number(s.sale_cbm),0)})).sort((a,b)=>b.total-a.total);
-    $('tbody').innerHTML=rows.filter(({entries})=>entries.some(s=>[s.buyer,s.vessel,s.bl_number,s.invoice_number].some(x=>String(x||'').toLowerCase().includes(q)))).map(({entries,total})=>'<tr><td><details><summary>'+esc(entries[0].buyer)+'</summary>'+cloudInvoiceTable(entries)+'</details></td><td>'+cloudQty(total)+'</td><td>'+new Set(entries.map(s=>s.vessel_id)).size+'</td><td>'+entries.length+'</td></tr>').join('')||'<tr><td colspan="4">No matching buyers.</td></tr>';
-    $('#tableNote').textContent=cloudLedger.entries.length+' cloud invoice / BL entries. Expand a buyer to see shipment and payment details.';
+    $('thead').innerHTML='<tr><th>Buyer</th><th>Purchased CBM</th><th>Shipments</th><th>Invoice / BL entries</th><th>Cumulative 9% Delay Cost (USD)</th></tr>';
+    const rows=[...grouped.values()].map(entries=>({entries,total:entries.reduce((n,s)=>n+Number(s.sale_cbm),0),delayCosts:entries.map(s=>buyerInvoiceDelayCost(s,delayAsOf))})).sort((a,b)=>b.total-a.total);
+    $('tbody').innerHTML=rows.filter(({entries})=>entries.some(s=>[s.buyer,s.vessel,s.bl_number,s.invoice_number].some(x=>String(x||'').toLowerCase().includes(q)))).map(({entries,total,delayCosts})=>'<tr><td><details><summary>'+esc(entries[0].buyer)+'</summary>'+cloudInvoiceTable(entries,delayAsOf)+'</details></td><td>'+cloudQty(total)+'</td><td>'+new Set(entries.map(s=>s.vessel_id)).size+'</td><td>'+entries.length+'</td><td>'+(delayCosts.every(c=>c===null)?'—':money(delayCosts.reduce((sum,c)=>sum+(c??0),0)))+'</td></tr>').join('')||'<tr><td colspan="5">No matching buyers.</td></tr>';
+    $('#tableNote').textContent=cloudLedger.entries.length+' cloud invoice / BL entries. Delay cost uses the Finance rules through '+delayAsOf+' (IST). Invoices without a due date are excluded. Expand a buyer for invoice-level costs.';
     return;
   }
   for(const s of cloudLedger.entries){
