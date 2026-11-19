@@ -20,7 +20,7 @@
     gate.style.display = 'none';
     shell.hidden = false;
     const script = document.createElement('script');
-    script.src = 'app.js?v=20261119-vessel-tables';
+    script.src = 'app.js?v=20261119-unified-vessels';
     script.onerror = () => { shell.hidden = true; gate.hidden = false; gate.style.display = 'grid'; status('Unable to load app. Please refresh.'); started = false; };
     document.body.appendChild(script);
   }
