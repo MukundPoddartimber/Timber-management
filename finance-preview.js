@@ -33,9 +33,19 @@ const cards=[
 ];
 $('summary').innerHTML=renderCards(cards);
 }
+function estimatedDaAcceptance(s,arrival,receipts){
+  if(String(s.payment_terms||'').trim().toUpperCase()!=='DA'||s.acceptance_date||receipts.length||!arrival)return null;
+  const date=new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Kolkata',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date(arrival));
+  return {due:date,end:new Date((day(date)+5)*86400000).toISOString().slice(0,10)};
+}
 function calculateShipment(id,includeRows=false){
-const finance=data.vessel_finance.find(x=>x.vessel_id===id)||{},sales=data.vessel_sales.filter(x=>x.vessel_id===id),payments=data.vessel_sale_payments, buyers=new Map(data.buyers.map(x=>[x.id,x.buyer_name]));let total=0,received=0,interest=0,lcCost=0,dpCost=0;const rows=sales.map(s=>{const invoice=s.invoice_amount_usd!=null?num(s.invoice_amount_usd):num(s.sale_cbm)*num(s.sale_rate_usd),due=s.due_date,accepted=s.acceptance_date,settled=s.historical_paid===true,terms=String(s.payment_terms||'').trim().toUpperCase(),isLc=/\bLC\b|LETTER OF CREDIT/.test(terms),cutoff=!isLc&&accepted&&accepted<today?accepted:today,lc=/^(LC(?:\s|$)|LETTER OF CREDIT$)/.test(terms)?num(s.sale_cbm)*4:0,dp=/^DP(?:\s|$)/.test(terms)?num(s.sale_cbm)*2:0,ps=payments.filter(p=>p.sale_id===s.id&&p.payment_date<=today).sort((a,b)=>a.payment_date.localeCompare(b.payment_date)),paid=settled?invoice:ps.reduce((a,p)=>a+num(p.amount_received_usd),0);
-let balance=invoice,cost=0,last=due&&!settled?day(due):null;
+const arrival=data.vessels.find(v=>v.id===id)?.arrival_date;
+const finance=data.vessel_finance.find(x=>x.vessel_id===id)||{},sales=data.vessel_sales.filter(x=>x.vessel_id===id),payments=data.vessel_sale_payments, buyers=new Map(data.buyers.map(x=>[x.id,x.buyer_name]));let total=0,received=0,interest=0,lcCost=0,dpCost=0;const rows=sales.map(s=>{const invoice=s.invoice_amount_usd!=null?num(s.invoice_amount_usd):num(s.sale_cbm)*num(s.sale_rate_usd),accepted=s.acceptance_date,settled=s.historical_paid===true,terms=String(s.payment_terms||'').trim().toUpperCase(),isLc=/\bLC\b|LETTER OF CREDIT/.test(terms),lc=/^(LC(?:\s|$)|LETTER OF CREDIT$)/.test(terms)?num(s.sale_cbm)*4:0,dp=/^DP(?:\s|$)/.test(terms)?num(s.sale_cbm)*2:0,ps=payments.filter(p=>p.sale_id===s.id&&p.payment_date<=today).sort((a,b)=>a.payment_date.localeCompare(b.payment_date)),paid=settled?invoice:ps.reduce((a,p)=>a+num(p.amount_received_usd),0);
+const estimate=estimatedDaAcceptance(s,arrival,ps);
+const due=estimate?.due||s.due_date;
+const endpoint=estimate?.end||(!isLc?accepted:null);
+const cutoff=endpoint&&endpoint<today?endpoint:today;
+let balance=invoice,cost=0,last=due&&(!settled||estimate)?day(due):null;
 for(const p of ps){
   if(p.payment_date>cutoff)break;
   if(last!==null&&p.payment_date>due){
@@ -49,10 +59,10 @@ if(last!==null)cost+=Math.max(0,balance)*.09*Math.max(0,day(cutoff)-last)/365;
 const outstanding=Math.max(0,invoice-paid);
 const finalReceipt=ps.at(-1)?.payment_date;
 const delayEnd=outstanding===0&&finalReceipt&&finalReceipt<cutoff?finalReceipt:cutoff;
-const delay=!settled&&due?Math.max(0,day(delayEnd)-day(due)):0;
+const delay=(!settled||estimate)&&due?Math.max(0,day(delayEnd)-day(due)):0;
 const nextDay=accepted?new Date((day(accepted)+1)*86400000).toISOString().slice(0,10):'';
 const status=settled?'Paid':outstanding===0?'Paid':accepted?'Accepted '+accepted+(isLc?' · payment pending':' · payment from '+nextDay):'Acceptance pending';
-total+=invoice;received+=paid;interest+=cost;lcCost+=lc;dpCost+=dp;return !includeRows?'':'<tr><td>'+escape(buyers.get(s.buyer_id)||s.buyer_id)+'</td><td>'+escape(s.invoice_number||s.bl_number||'—')+ (s.bl_number&&s.invoice_number?'<br><small>'+escape(s.bl_number)+'</small>':'')+'</td><td>'+num(s.sale_cbm).toFixed(3)+'</td><td>'+fmt(invoice)+'</td><td>'+fmt(paid)+'</td><td>'+fmt(outstanding)+'</td><td>'+(settled?0:due?delay:'No due date')+'</td><td>'+(settled||due?fmt(cost):'—')+'</td><td>'+escape(status)+(ps.length?'<br><small>'+escape(ps.map(p=>(p.payment_reference?.startsWith('Estimated DA settlement date')?'Estimated DA settlement ':isLc?'Acceptance / payment date ':'Received ')+p.payment_date).join(', '))+'</small>':'')+'</td><td>'+escape(s.payment_terms||'—')+'</td><td>'+fmt(lc+dp)+'</td></tr>'});
+total+=invoice;received+=paid;interest+=cost;lcCost+=lc;dpCost+=dp;return !includeRows?'':'<tr><td>'+escape(buyers.get(s.buyer_id)||s.buyer_id)+'</td><td>'+escape(s.invoice_number||s.bl_number||'—')+ (s.bl_number&&s.invoice_number?'<br><small>'+escape(s.bl_number)+'</small>':'')+'</td><td>'+num(s.sale_cbm).toFixed(3)+'</td><td>'+fmt(invoice)+'</td><td>'+fmt(paid)+'</td><td>'+fmt(outstanding)+'</td><td>'+(due?delay:settled?0:'No due date')+'</td><td>'+(settled||due?fmt(cost):'—')+'</td><td>'+escape(status)+(ps.length?'<br><small>'+escape(ps.map(p=>(p.payment_reference?.startsWith('Estimated DA settlement date')?'Estimated DA settlement ':isLc?'Acceptance / payment date ':'Received ')+p.payment_date).join(', '))+'</small>':estimate?'<br><small>Estimated DA acceptance '+escape(estimate.end)+'</small>':'')+'</td><td>'+escape(s.payment_terms||'—')+'</td><td>'+fmt(lc+dp)+'</td></tr>'});
 const additionalExpenses=['port_charges_usd','demurrage_usd','other_expenses_usd'].reduce((sum,key)=>sum+num(finance[key]),0);
 const recordedExpenses=additionalExpenses+num(finance.purchase_amount_usd)+num(finance.freight_usd);
 const cfr=num(finance.cfr_purchase_usd)>0?num(finance.cfr_purchase_usd):null;
