@@ -21,7 +21,7 @@ const cards=[
   ['Sales',fmt(result.total)],
   ['Received',fmt(result.received)],
   ['Outstanding',fmt(Math.max(0,result.total-result.received))],
-  ['CFR purchase cost',scoped&&result.cfr!==null?fmt(result.cfr):'—'],
+  ['CFR purchase cost',result.cfr!==null?fmt(result.cfr):'—'],
   ['Purchase + recorded expenses',fmt(result.cfr===null?result.recordedExpenses:result.cfr+result.additionalExpenses)],
   ['Net profit / loss',!scoped?'Outside profit period':result.net===null?'Awaiting CFR and invoice data':fmt(result.net)],
   ['LC 150-day cost',fmt(result.lcCost)],
@@ -48,7 +48,7 @@ const outstanding=Math.max(0,invoice-paid);
 const delay=!settled&&due&&(accepted||outstanding>0)?Math.max(0,day(cutoff)-day(due)):0;
 const nextDay=accepted?new Date((day(accepted)+1)*86400000).toISOString().slice(0,10):'';
 const status=settled?'Paid':outstanding===0?'Paid':accepted?'Accepted '+accepted+' · payment from '+nextDay:'Acceptance pending';
-total+=invoice;received+=paid;interest+=cost;lcCost+=lc;dpCost+=dp;return !includeRows?'':'<tr><td>'+escape(buyers.get(s.buyer_id)||s.buyer_id)+'</td><td>'+escape(s.invoice_number||s.bl_number||'—')+ (s.bl_number&&s.invoice_number?'<br><small>'+escape(s.bl_number)+'</small>':'')+'</td><td>'+num(s.sale_cbm).toFixed(3)+'</td><td>'+fmt(invoice)+'</td><td>'+fmt(paid)+'</td><td>'+fmt(outstanding)+'</td><td>'+(settled?0:due?delay:'No due date')+'</td><td>'+(settled||due?fmt(cost):'—')+'</td><td>'+escape(status)+'</td><td>'+escape(s.payment_terms||'—')+'</td><td>'+fmt(lc+dp)+'</td></tr>'});
+total+=invoice;received+=paid;interest+=cost;lcCost+=lc;dpCost+=dp;return !includeRows?'':'<tr><td>'+escape(buyers.get(s.buyer_id)||s.buyer_id)+'</td><td>'+escape(s.invoice_number||s.bl_number||'—')+ (s.bl_number&&s.invoice_number?'<br><small>'+escape(s.bl_number)+'</small>':'')+'</td><td>'+num(s.sale_cbm).toFixed(3)+'</td><td>'+fmt(invoice)+'</td><td>'+fmt(paid)+'</td><td>'+fmt(outstanding)+'</td><td>'+(settled?0:due?delay:'No due date')+'</td><td>'+(settled||due?fmt(cost):'—')+'</td><td>'+escape(status)+(ps.length?'<br><small>Received '+escape(ps.map(p=>p.payment_date).join(', '))+'</small>':'')+'</td><td>'+escape(s.payment_terms||'—')+(s.lc_received_date?'<br><small>LC received '+escape(s.lc_received_date)+'</small>':'')+'</td><td>'+fmt(lc+dp)+'</td></tr>'});
 const additionalExpenses=['port_charges_usd','demurrage_usd','other_expenses_usd'].reduce((sum,key)=>sum+num(finance[key]),0);
 const recordedExpenses=additionalExpenses+num(finance.purchase_amount_usd)+num(finance.freight_usd);
 const cfr=num(finance.cfr_purchase_usd)>0?num(finance.cfr_purchase_usd):null;
