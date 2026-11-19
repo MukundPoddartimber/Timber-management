@@ -21,6 +21,7 @@ const cards=[
   ['Sales',fmt(result.total)],
   ['Received',fmt(result.received)],
   ['Outstanding',fmt(Math.max(0,result.total-result.received))],
+  ['Demurrage expense',fmt(result.demurrage)],
   ['Despatch credit',fmt(result.despatch)],
   ['CFR purchase cost',result.cfr!==null?fmt(result.cfr):'—'],
   ['Purchase + recorded expenses',fmt(result.cfr===null?result.recordedExpenses:result.cfr+result.additionalExpenses)],
@@ -56,8 +57,9 @@ const additionalExpenses=['port_charges_usd','demurrage_usd','other_expenses_usd
 const recordedExpenses=additionalExpenses+num(finance.purchase_amount_usd)+num(finance.freight_usd);
 const cfr=num(finance.cfr_purchase_usd)>0?num(finance.cfr_purchase_usd):null;
 const despatch=num(finance.despatch_credit_usd);
+const demurrage=num(finance.demurrage_usd);
 const net=cfr===null||sales.length===0?null:total-cfr-additionalExpenses-lcCost-dpCost-interest+despatch;
-return {rows,total,received,lcCost,dpCost,interest,cfr,net,despatch,recordedExpenses,additionalExpenses};
+return {rows,total,received,lcCost,dpCost,interest,cfr,net,despatch,demurrage,recordedExpenses,additionalExpenses};
 }
 function renderCards(cards){
   return cards.map(([label,value])=>'<div class="card">'+escape(label)+'<strong>'+escape(value)+'</strong></div>').join('');
@@ -68,6 +70,8 @@ function renderOverallProfit(){
   const net=included.reduce((sum,result)=>sum+result.net,0);
   $('overallProfit').innerHTML=renderCards([
     ['Overall net profit / loss',included.length?fmt(net):'Awaiting CFR and invoice data'],
+    ['Demurrage expense included',fmt(included.reduce((sum,result)=>sum+result.demurrage,0))],
+    ['Despatch credit included',fmt(included.reduce((sum,result)=>sum+result.despatch,0))],
     ['Shipments included',String(included.length)],
     ['Shipments awaiting CFR or invoices',String(eligible.length-included.length)]
   ]);
