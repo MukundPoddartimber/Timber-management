@@ -94,6 +94,23 @@ function buyerInvoiceDelayCost(s,asOf){
   }
   return cost+Math.max(0,balance)*.09*Math.max(0,day(cutoff)-last)/365;
 }
+function delayCostTotal(costs){
+  return costs.every(cost=>cost===null)?'—':money(costs.reduce((total,cost)=>total+(cost??0),0));
+}
+function buyerVesselDelayDetails(entries,delayCosts,asOf){
+  const shipments=new Map();
+  entries.forEach((invoice,index)=>{
+    if(!shipments.has(invoice.vessel_id))shipments.set(invoice.vessel_id,{invoices:[],costs:[]});
+    const shipment=shipments.get(invoice.vessel_id);
+    shipment.invoices.push(invoice);
+    shipment.costs.push(delayCosts[index]);
+  });
+  const rows=[...shipments.values()].sort((a,b)=>a.invoices[0].vessel.localeCompare(b.invoices[0].vessel));
+  return '<details><summary aria-label="Vessel-wise delay cost for '+esc(entries[0].buyer)+': '+delayCostTotal(delayCosts)+'">'+delayCostTotal(delayCosts)+'</summary>'+
+    '<div class="tablewrap"><table><thead><tr><th>Vessel</th><th>9% delay cost (USD)</th></tr></thead><tbody>'+
+    rows.map(({invoices,costs})=>'<tr><td><details><summary>'+esc(invoices[0].vessel)+'</summary>'+cloudInvoiceTable(invoices,asOf)+'</details></td><td>'+delayCostTotal(costs)+'</td></tr>').join('')+
+    '</tbody></table></div></details>';
+}
 function cloudInvoiceTable(entries,delayAsOf=null){
   if(!entries.length)return '<p>No cloud invoices recorded for this shipment.</p>';
   const headers=['Buyer','Shipment','BL','Invoice','CBM','Invoice USD','Terms','Due date','Acceptance','Payment status','Recorded receipts'];
@@ -179,8 +196,8 @@ function renderCloudLedger(){
     $('#tableTitle').textContent='Buyers list · cumulative CBM';
     $('thead').innerHTML='<tr><th>Buyer</th><th>Purchased CBM</th><th>Shipments</th><th>Invoice / BL entries</th><th>Cumulative 9% Delay Cost (USD)</th></tr>';
     const rows=[...grouped.values()].map(entries=>({entries,total:entries.reduce((n,s)=>n+Number(s.sale_cbm),0),delayCosts:entries.map(s=>buyerInvoiceDelayCost(s,delayAsOf))})).sort((a,b)=>b.total-a.total);
-    $('tbody').innerHTML=rows.filter(({entries})=>entries.some(s=>[s.buyer,s.vessel,s.bl_number,s.invoice_number].some(x=>String(x||'').toLowerCase().includes(q)))).map(({entries,total,delayCosts})=>'<tr><td><details><summary>'+esc(entries[0].buyer)+'</summary>'+cloudInvoiceTable(entries,delayAsOf)+'</details></td><td>'+cloudQty(total)+'</td><td>'+new Set(entries.map(s=>s.vessel_id)).size+'</td><td>'+entries.length+'</td><td>'+(delayCosts.every(c=>c===null)?'—':money(delayCosts.reduce((sum,c)=>sum+(c??0),0)))+'</td></tr>').join('')||'<tr><td colspan="5">No matching buyers.</td></tr>';
-    $('#tableNote').textContent=cloudLedger.entries.length+' cloud invoice / BL entries. Delay cost uses the Finance rules through '+delayAsOf+' (IST). Invoices without a due date are excluded. Expand a buyer for invoice-level costs.';
+    $('tbody').innerHTML=rows.filter(({entries})=>entries.some(s=>[s.buyer,s.vessel,s.bl_number,s.invoice_number].some(x=>String(x||'').toLowerCase().includes(q)))).map(({entries,total,delayCosts})=>'<tr><td><details><summary>'+esc(entries[0].buyer)+'</summary>'+cloudInvoiceTable(entries,delayAsOf)+'</details></td><td>'+cloudQty(total)+'</td><td>'+new Set(entries.map(s=>s.vessel_id)).size+'</td><td>'+entries.length+'</td><td>'+buyerVesselDelayDetails(entries,delayCosts,delayAsOf)+'</td></tr>').join('')||'<tr><td colspan="5">No matching buyers.</td></tr>';
+    $('#tableNote').textContent=cloudLedger.entries.length+' cloud invoice / BL entries. Delay cost uses the Finance rules through '+delayAsOf+' (IST). Invoices without a due date are excluded. Select a cumulative delay cost for vessel-wise details. Expand a vessel or buyer for invoice-level costs.';
     return;
   }
   for(const s of cloudLedger.entries){
