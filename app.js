@@ -9,7 +9,7 @@ const historicalBuyerDetails={
 };
 const drakeEucalyptusBLs=new Set(['DW/KDL/1AA','DW/KDL/1S','DW/KDL/1T','DW/KDL/1U','DW/KDL/1V','DW/KDL/1W','DW/KDL/1X','DW/KDL/1Y','DW/KDL/1Z','DW/KDL/2N']);
 
-const dpaTimberSnapshot=[{"name":"African Peacock","cbm":36926,"origin":"Australia","cargo":"Pine logs","eta":"10-31 02:06","etb":"11-09"},{"name":"Enshi","cbm":33134,"origin":"Australia","cargo":"Pine logs","eta":"11-05 00:18","etb":"11-09"},{"name":"Drake Well","cbm":26112,"origin":"Argentina","cargo":"Pine logs","eta":"11-05 13:30","etb":"11-17"},{"name":"ML Egret","cbm":42886,"origin":"New Zealand","cargo":"Pine logs","eta":"11-06 15:00","etb":"11-18"},{"name":"Uni Blossom","cbm":34870,"origin":"Uruguay","cargo":"Pine logs","eta":"11-09 01:00","etb":"11-20"},{"name":"AG Varvara","cbm":39113,"origin":"Australia","cargo":"JAS pine logs","eta":"11-12 00:00","etb":"11-26"},{"name":"CD Glory","cbm":29158,"origin":"Malaysia","cargo":"Hardwood logs","eta":"11-15 12:00","etb":"11-28"},{"name":"Dariya Priya","cbm":44968,"origin":"New Zealand","cargo":"Pine logs","eta":"11-16 08:00","etb":"12-03"},{"name":"African Tiger","cbm":36328,"origin":"—","cargo":"Pine logs","eta":"11-18 00:00","etb":""},{"name":"Paiwan Ace","cbm":null,"origin":"Uruguay","cargo":"Pine logs","eta":"11-21 21:00","etb":"12-05"},{"name":"Erna Oldendorff","cbm":null,"origin":"Australia","cargo":"Pine logs","eta":"11-23 15:00","etb":"12-10"},{"name":"African Pheasant","cbm":null,"origin":"New Zealand","cargo":"Logs","eta":"11-23 16:30","etb":"12-12"},{"name":"Paiwan Wisdom","cbm":null,"origin":"USA","cargo":"Logs","eta":"11-26","etb":"12-20"}];
+const dpaTimberSnapshot=[{"name":"African Peacock","cbm":36926,"origin":"Australia","cargo":"Pine logs","eta":"10-31 02:06","etb":"11-09"},{"name":"Enshi","cbm":33134,"origin":"Australia","cargo":"Pine logs","eta":"11-05 00:18","etb":"11-09"},{"name":"Drake Well","cbm":26112,"origin":"Argentina","cargo":"Pine logs","eta":"11-05 13:30","etb":"11-17"},{"name":"ML Egret","cbm":42886,"origin":"New Zealand","cargo":"Pine logs","eta":"11-06 15:00","etb":"11-18"},{"name":"Uni Blossom","cbm":34870,"origin":"Uruguay","cargo":"Pine logs","eta":"11-09 01:00","etb":"11-20"},{"name":"AG Varvara","cbm":39113,"origin":"Australia","cargo":"JAS pine logs","eta":"11-12 00:00","etb":"11-26"},{"name":"CD Glory","cbm":29158,"origin":"Malaysia","cargo":"Hardwood logs","eta":"11-15 12:00","etb":"11-28"},{"name":"Dariya Priya","cbm":44968,"origin":"New Zealand","cargo":"Pine logs","eta":"11-16 08:00","etb":"12-03"},{"name":"African Tiger","cbm":36328,"origin":"—","cargo":"Pine logs","eta":"11-18 00:00","etb":""},{"name":"Paiwan Ace","cbm":null,"origin":"Uruguay","cargo":"Pine logs","eta":"11-22 01:00","etb":"12-05"},{"name":"Erna Oldendorff","cbm":null,"origin":"Australia","cargo":"Pine logs","eta":"11-23 20:00","etb":"12-10"},{"name":"African Pheasant","cbm":null,"origin":"New Zealand","cargo":"Logs","eta":"11-23 16:30","etb":"12-12"},{"name":"Paiwan Wisdom","cbm":null,"origin":"USA","cargo":"Logs","eta":"11-28","etb":"12-20"}];
 // Preserve every saved call when merging later Timber board updates.
 const dpaArrivalArchive=[{"name":"African Peacock","arrival":"2026-10-31 02:06","status":"Completed"},{"name":"Enshi","arrival":"2026-11-05 00:18","status":"Completed"},{"name":"Drake Well","arrival":"2026-11-05 15:00","status":"Completed"},{"name":"ML Egret","arrival":"2026-11-06 14:24","status":"At berth"},{"name":"Uni Blossom","arrival":"2026-11-09 11:36","status":"Waiting"},{"name":"AG Varvara","arrival":"2026-11-12 07:06","status":"Waiting"},{"name":"CD Glory","arrival":"2026-11-15 06:42","status":"Waiting"},{"name":"Dariya Priya","arrival":"2026-11-16 09:00","status":"Waiting"},{"name":"African Tiger","arrival":"2026-11-18 06:30","status":"Waiting"},{"name":"Lanna Naree","arrival":"2026-10-27 12:54","status":"Completed","cbm":29222,"origin":"Malaysia","cargo":"Hardwood logs"},{"name":"African Quail","arrival":"2026-10-27 00:15","status":"Completed","cbm":34758,"origin":"Argentina","cargo":"Pine logs"},{"name":"Centurion Buyo","arrival":"","status":"Completed","cbm":29852,"origin":"","cargo":"Pine logs"},{"name":"AC Kathryn","arrival":"","status":"Completed","cbm":29068,"origin":"Australia","cargo":"JAS logs"}];
 function monthlyTimberRows(rows){
@@ -21,10 +21,11 @@ function monthlyTimberRows(rows){
   }
   const monthName=key=>new Intl.DateTimeFormat('en-GB',{month:'long',year:'numeric',timeZone:'UTC'}).format(new Date(key+'-01T00:00:00Z'));
   const headings=['Vessel','Source / supplier','Origin','Cargo','Arrival / ETA','Status','IGM'];
-  const labels={expected:'Expected vessels',undated:'Arrival date unavailable',manual:'Manual entries'};
+  const labels={undated:'Arrival date unavailable',manual:'Manual entries'};
   return [...groups.keys()].sort((a,b)=>b.localeCompare(a)).sort((a,b)=>Number(a in labels)-Number(b in labels)).map(key=>{
     const entries=groups.get(key);
-    const label=(labels[key]||monthName(key))+' · '+entries.length+(key in labels?' vessels':' arrivals');
+    const expected=entries.filter(cells=>cells[5].startsWith('Expected')).length;
+    const label=labels[key]?labels[key]+' · '+entries.length+' vessels':monthName(key)+' · '+(entries.length-expected)+' arrived · '+expected+' expected';
     return '<tr><td><details><summary>'+esc(label)+'</summary><div class="tablewrap"><table><thead><tr>'+
       headings.map(heading=>'<th>'+heading+'</th>').join('')+'</tr></thead><tbody>'+
       entries.map(cells=>'<tr>'+cells.map((cell,index)=>'<td>'+(index===6?cell:esc(cell??'—'))+'</td>').join('')+'</tr>').join('')+
@@ -41,13 +42,13 @@ function renderTimberArrivals(){
     return [{month:call.arrival?call.arrival.slice(0,7):'undated'},[call.name,source,call.origin??snapshot?.origin,cargo,call.arrival||'—',call.status,igm(call.name)]];
   });
   const expected=dpaTimberSnapshot.filter(entry=>!dpaArrivalArchive.some(call=>call.name===entry.name)).map(entry=>
-    [{month:'expected'},[entry.name,source,entry.origin,entry.cargo,entry.eta+' (2026)',entry.etb?'Expected · ETB '+entry.etb:'Expected',igm(entry.name)]]);
+    [{month:'2026-'+entry.eta.slice(0,2)},[entry.name,source,entry.origin,entry.cargo,entry.eta+' (2026)',entry.etb?'Expected · ETB '+entry.etb:'Expected',igm(entry.name)]]);
   const manual=db.other.map(entry=>[{month:'manual'},[entry.name,entry.supplier,'—',entry.cargo,entry.eta,entry.status,igm(entry.name)]]);
   const search=$('#search').value.trim().toLowerCase();
   const rows=[...boardRows,...expected,...manual].filter(([record,cells])=>[record.month,...cells.slice(0,6)].join(' ').toLowerCase().includes(search));
   $('thead').innerHTML='<tr><th>Kandla timber arrivals by month</th></tr>';
   $('tbody').innerHTML=monthlyTimberRows(rows)||'<tr><td>No matching vessels.</td></tr>';
-  $('#tableNote').textContent='Arrivals are grouped by reported Kandla arrival date. Latest archive source: DPA Timber board, 20 Nov 2026. Historical coverage depends on available arrival records.';
+  $('#tableNote').textContent='Vessels are grouped by actual Kandla arrival date or, when expected, by ETA. Latest archive source: DPA Timber board, 20 Nov 2026. Historical coverage depends on available arrival records.';
 }
 
 const $=s=>document.querySelector(s),money=n=>new Intl.NumberFormat('en-US',{style:'currency',currency:'USD',maximumFractionDigits:2}).format(n),today=new Date().toISOString().slice(0,10),day=s=>Date.parse(s+'T00:00:00Z')/86400000,esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
