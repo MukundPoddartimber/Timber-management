@@ -50,8 +50,8 @@ toggle.addEventListener('click',()=>{
   toggle.setAttribute('aria-expanded',String(!details.hidden));
   if(details.hidden)return;
 
-  $('outstandingInvoices').innerHTML=result.unpaidInvoices.map(({buyer,reference,cents})=>
-    '<tr><td>'+escape(buyer)+'</td><td>'+escape(reference)+'</td><td>'+fmt(cents/100)+'</td></tr>'
+  $('outstandingInvoices').innerHTML=result.unpaidInvoices.map(({buyer,reference,cents,terms,lcOpenDate})=>
+    '<tr><td>'+escape(buyer)+'</td><td>'+escape(reference)+'</td><td>'+fmt(cents/100)+'</td><td>'+escape(terms)+'</td><td>'+escape(lcOpenDate)+'</td></tr>'
   ).join('');
   $('outstandingTable').hidden=result.unpaidInvoices.length===0;
   $('outstandingEmpty').hidden=result.unpaidInvoices.length>0;
@@ -87,7 +87,7 @@ const outstanding=Math.max(0,invoice-paid);
 const cents=Math.round(outstanding*100);
 outstandingCents+=cents;
 if(includeRows&&cents>0){
-  unpaidInvoices.push({buyer:buyers.get(s.buyer_id)||s.buyer_id,reference:s.invoice_number||s.bl_number||'—',cents});
+  unpaidInvoices.push({buyer:buyers.get(s.buyer_id)||s.buyer_id,reference:s.invoice_number||s.bl_number||'—',cents,terms:terms||'—',lcOpenDate:isLc&&s.lc_open_date?s.lc_open_date.split('-').reverse().join('/'):'—'});
 }
 const finalReceipt=ps.at(-1)?.payment_date;
 const delayEnd=outstanding===0&&finalReceipt&&finalReceipt<cutoff?finalReceipt:cutoff;
