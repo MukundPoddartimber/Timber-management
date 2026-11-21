@@ -13,14 +13,17 @@ for(let from=0;;from+=500){
   rows.push(...data);
   if(data.length<500)break;
 }
-records[name]=rows;}data=records;const select=$('vessel'),previous=select.value;select.replaceChildren();for(const v of records.vessels)select.add(new Option(v.vessel_name||v.name||v.id,v.id));const cloudNames=new Set(records.vessels.map(v=>String(v.vessel_name||v.name||'').trim().toUpperCase()));for(const [i,name] of historicalVessels.entries())if(!cloudNames.has(name))select.add(new Option(name+' (history · finance not yet synced)','history:'+i));if([...select.options].some(o=>o.value===previous))select.value=previous;renderOverallProfit();render();$('dashboard').hidden=false;$('status').textContent='Cloud finance records loaded';$('error').textContent=''}function render(){if(!data)return;const id=$('vessel').value;if(id==='history:'+historicalVessels.indexOf('MV DRAKE WELL — LATEST SHIPMENT')){const key='spoddar-drake-well-rate-draft-v1';let rates={};try{rates=JSON.parse(localStorage.getItem(key)||'{}')}catch{}const draw=()=>{let total=0,priced=0;$('sales').innerHTML=drakeLots.map((x,i)=>{const rate=rates[x[0]];const valid=rate!==undefined&&rate!==''&&Number.isFinite(Number(rate))&&Number(rate)>=0;const amount=valid?num(x[4])*Number(rate):null;if(valid){total+=amount;priced++}return '<tr><td>'+escape(x[2])+'</td><td>'+escape(x[0])+'</td><td>'+num(x[4]).toFixed(3)+'</td><td><label>USD/CBM <input aria-label="Rate for '+escape(x[0])+'" data-rate="'+i+'" type="number" min="0" step="0.01" value="'+(valid?escape(rate):'')+'" style="width:95px;padding:7px"></label></td><td>'+(valid?fmt(amount):'—')+'</td><td colspan="3">Draft · not invoiced</td></tr>'}).join('');$('summary').innerHTML='<div class="card">Drake Well latest shipment<strong>'+drakeLots.length+' BL / buyer entries</strong></div><div class="card">Allocated volume<strong>'+drakeLots.reduce((n,x)=>n+num(x[4]),0).toFixed(3)+' CBM</strong></div><div class="card">Priced BL entries<strong>'+priced+' / '+drakeLots.length+'</strong></div><div class="card">Draft sale value (priced BLs)<strong>'+fmt(total)+'</strong></div><div class="card">Rate entry status<strong>Saved in this browser only · not synced</strong></div>'};draw();$('sales').onchange=e=>{const el=e.target;if(!el.matches('input[data-rate]'))return;const lot=drakeLots[Number(el.dataset.rate)];if(!lot)return;if(el.value==='')delete rates[lot[0]];else if(Number.isFinite(Number(el.value))&&Number(el.value)>=0)rates[lot[0]]=el.value;else return;try{localStorage.setItem(key,JSON.stringify(rates));draw()}catch(err){$('error').textContent='Could not save draft: '+err.message}};return}if(id.startsWith('history:')){$('sales').innerHTML='<tr><td colspan="11">Historical vessel selected. Finance data is not yet synced for this shipment.</td></tr>';$('summary').innerHTML='<div class="card">Historical shipment<strong>Finance not yet available</strong></div>';return}const result=calculateShipment(id,true);
+records[name]=rows;}data=records;const select=$('vessel'),previous=select.value;select.replaceChildren();for(const v of records.vessels)select.add(new Option(v.vessel_name||v.name||v.id,v.id));const cloudNames=new Set(records.vessels.map(v=>String(v.vessel_name||v.name||'').trim().toUpperCase()));for(const [i,name] of historicalVessels.entries())if(!cloudNames.has(name))select.add(new Option(name+' (history · finance not yet synced)','history:'+i));if([...select.options].some(o=>o.value===previous))select.value=previous;renderOverallProfit();render();$('dashboard').hidden=false;$('status').textContent='Cloud finance records loaded';$('error').textContent=''}function render(){if(!data)return;
+$('outstandingDetails').hidden=true;
+$('outstandingInvoices').replaceChildren();
+const id=$('vessel').value;if(id==='history:'+historicalVessels.indexOf('MV DRAKE WELL — LATEST SHIPMENT')){const key='spoddar-drake-well-rate-draft-v1';let rates={};try{rates=JSON.parse(localStorage.getItem(key)||'{}')}catch{}const draw=()=>{let total=0,priced=0;$('sales').innerHTML=drakeLots.map((x,i)=>{const rate=rates[x[0]];const valid=rate!==undefined&&rate!==''&&Number.isFinite(Number(rate))&&Number(rate)>=0;const amount=valid?num(x[4])*Number(rate):null;if(valid){total+=amount;priced++}return '<tr><td>'+escape(x[2])+'</td><td>'+escape(x[0])+'</td><td>'+num(x[4]).toFixed(3)+'</td><td><label>USD/CBM <input aria-label="Rate for '+escape(x[0])+'" data-rate="'+i+'" type="number" min="0" step="0.01" value="'+(valid?escape(rate):'')+'" style="width:95px;padding:7px"></label></td><td>'+(valid?fmt(amount):'—')+'</td><td colspan="3">Draft · not invoiced</td></tr>'}).join('');$('summary').innerHTML='<div class="card">Drake Well latest shipment<strong>'+drakeLots.length+' BL / buyer entries</strong></div><div class="card">Allocated volume<strong>'+drakeLots.reduce((n,x)=>n+num(x[4]),0).toFixed(3)+' CBM</strong></div><div class="card">Priced BL entries<strong>'+priced+' / '+drakeLots.length+'</strong></div><div class="card">Draft sale value (priced BLs)<strong>'+fmt(total)+'</strong></div><div class="card">Rate entry status<strong>Saved in this browser only · not synced</strong></div>'};draw();$('sales').onchange=e=>{const el=e.target;if(!el.matches('input[data-rate]'))return;const lot=drakeLots[Number(el.dataset.rate)];if(!lot)return;if(el.value==='')delete rates[lot[0]];else if(Number.isFinite(Number(el.value))&&Number(el.value)>=0)rates[lot[0]]=el.value;else return;try{localStorage.setItem(key,JSON.stringify(rates));draw()}catch(err){$('error').textContent='Could not save draft: '+err.message}};return}if(id.startsWith('history:')){$('sales').innerHTML='<tr><td colspan="11">Historical vessel selected. Finance data is not yet synced for this shipment.</td></tr>';$('summary').innerHTML='<div class="card">Historical shipment<strong>Finance not yet available</strong></div>';return}const result=calculateShipment(id,true);
 $('sales').innerHTML=result.rows.join('')||'<tr><td colspan="11">No sales recorded for this vessel</td></tr>';
 const vessel=data.vessels.find(v=>v.id===id);
 const scoped=vessel&&inProfitScope(vessel);
 const cards=[
   ['Sales',fmt(result.total)],
   ['Received',fmt(result.received)],
-  ['Outstanding',fmt(Math.max(0,result.total-result.received))],
+  ['Outstanding',fmt(result.outstandingCents/100)],
   ['Demurrage expense',fmt(result.demurrage)],
   ['Despatch credit',fmt(result.despatch)],
   ['CFR purchase cost',result.cfr!==null?fmt(result.cfr):'—'],
@@ -32,6 +35,28 @@ const cards=[
   ['Total finance cost',fmt(result.lcCost+result.dpCost+result.interest)]
 ];
 $('summary').innerHTML=renderCards(cards);
+const outstandingCard=$('summary').children[2];
+const toggle=document.createElement('button');
+toggle.type='button';
+toggle.className='card outstanding-toggle';
+toggle.setAttribute('aria-controls','outstandingDetails');
+toggle.setAttribute('aria-expanded','false');
+toggle.innerHTML=outstandingCard.innerHTML+'<small>View unpaid invoices</small>';
+outstandingCard.replaceWith(toggle);
+
+const details=$('outstandingDetails');
+toggle.addEventListener('click',()=>{
+  details.hidden=!details.hidden;
+  toggle.setAttribute('aria-expanded',String(!details.hidden));
+  if(details.hidden)return;
+
+  $('outstandingInvoices').innerHTML=result.unpaidInvoices.map(({buyer,reference,cents})=>
+    '<tr><td>'+escape(buyer)+'</td><td>'+escape(reference)+'</td><td>'+fmt(cents/100)+'</td></tr>'
+  ).join('');
+  $('outstandingTable').hidden=result.unpaidInvoices.length===0;
+  $('outstandingEmpty').hidden=result.unpaidInvoices.length>0;
+  details.scrollIntoView({block:'nearest'});
+});
 }
 function estimatedDaAcceptance(s,arrival,receipts){
   if(String(s.payment_terms||'').trim().toUpperCase()!=='DA'||s.acceptance_date||receipts.length||!arrival)return null;
@@ -40,7 +65,9 @@ function estimatedDaAcceptance(s,arrival,receipts){
 }
 function calculateShipment(id,includeRows=false){
 const arrival=data.vessels.find(v=>v.id===id)?.arrival_date;
-const finance=data.vessel_finance.find(x=>x.vessel_id===id)||{},sales=data.vessel_sales.filter(x=>x.vessel_id===id),payments=data.vessel_sale_payments, buyers=new Map(data.buyers.map(x=>[x.id,x.buyer_name]));let total=0,received=0,interest=0,lcCost=0,dpCost=0;const rows=sales.map(s=>{const invoice=s.invoice_amount_usd!=null?num(s.invoice_amount_usd):num(s.sale_cbm)*num(s.sale_rate_usd),accepted=s.acceptance_date,settled=s.historical_paid===true,terms=String(s.payment_terms||'').trim().toUpperCase(),isLc=/\bLC\b|LETTER OF CREDIT/.test(terms),lc=/^(LC(?:\s|$)|LETTER OF CREDIT$)/.test(terms)?num(s.sale_cbm)*4:0,dp=/^DP(?:\s|$)/.test(terms)?num(s.sale_cbm)*2:0,ps=payments.filter(p=>p.sale_id===s.id&&p.payment_date<=today).sort((a,b)=>a.payment_date.localeCompare(b.payment_date)),paid=settled?invoice:ps.reduce((a,p)=>a+num(p.amount_received_usd),0);
+const finance=data.vessel_finance.find(x=>x.vessel_id===id)||{},sales=data.vessel_sales.filter(x=>x.vessel_id===id),payments=data.vessel_sale_payments, buyers=new Map(data.buyers.map(x=>[x.id,x.buyer_name]));let total=0,received=0,interest=0,lcCost=0,dpCost=0,outstandingCents=0;
+const unpaidInvoices=[];
+const rows=sales.map(s=>{const invoice=s.invoice_amount_usd!=null?num(s.invoice_amount_usd):num(s.sale_cbm)*num(s.sale_rate_usd),accepted=s.acceptance_date,settled=s.historical_paid===true,terms=String(s.payment_terms||'').trim().toUpperCase(),isLc=/\bLC\b|LETTER OF CREDIT/.test(terms),lc=/^(LC(?:\s|$)|LETTER OF CREDIT$)/.test(terms)?num(s.sale_cbm)*4:0,dp=/^DP(?:\s|$)/.test(terms)?num(s.sale_cbm)*2:0,ps=payments.filter(p=>p.sale_id===s.id&&p.payment_date<=today).sort((a,b)=>a.payment_date.localeCompare(b.payment_date)),paid=settled?invoice:ps.reduce((a,p)=>a+num(p.amount_received_usd),0);
 const estimate=estimatedDaAcceptance(s,arrival,ps);
 const due=estimate?.due||s.due_date;
 const endpoint=estimate?.end||(!isLc?accepted:null);
@@ -57,6 +84,11 @@ for(const p of ps){
 }
 if(last!==null)cost+=Math.max(0,balance)*.09*Math.max(0,day(cutoff)-last)/365;
 const outstanding=Math.max(0,invoice-paid);
+const cents=Math.round(outstanding*100);
+outstandingCents+=cents;
+if(includeRows&&cents>0){
+  unpaidInvoices.push({buyer:buyers.get(s.buyer_id)||s.buyer_id,reference:s.invoice_number||s.bl_number||'—',cents});
+}
 const finalReceipt=ps.at(-1)?.payment_date;
 const delayEnd=outstanding===0&&finalReceipt&&finalReceipt<cutoff?finalReceipt:cutoff;
 const delay=(!settled||estimate)&&due?Math.max(0,day(delayEnd)-day(due)):0;
@@ -69,7 +101,7 @@ const cfr=num(finance.cfr_purchase_usd)>0?num(finance.cfr_purchase_usd):null;
 const despatch=num(finance.despatch_credit_usd);
 const demurrage=num(finance.demurrage_usd);
 const net=cfr===null||sales.length===0?null:total-cfr-additionalExpenses-lcCost-dpCost-interest+despatch;
-return {rows,total,received,lcCost,dpCost,interest,cfr,net,despatch,demurrage,recordedExpenses,additionalExpenses};
+return {rows,total,received,outstandingCents,unpaidInvoices,lcCost,dpCost,interest,cfr,net,despatch,demurrage,recordedExpenses,additionalExpenses};
 }
 function renderCards(cards){
   return cards.map(([label,value])=>'<div class="card">'+escape(label)+'<strong>'+escape(value)+'</strong></div>').join('');
