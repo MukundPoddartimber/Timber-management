@@ -50,13 +50,34 @@ toggle.addEventListener('click',()=>{
   toggle.setAttribute('aria-expanded',String(!details.hidden));
   if(details.hidden)return;
 
-  $('outstandingInvoices').innerHTML=result.unpaidInvoices.map(({buyer,reference,cents,terms,lcOpenDate})=>
-    '<tr><td>'+escape(buyer)+'</td><td>'+escape(reference)+'</td><td>'+fmt(cents/100)+'</td><td>'+escape(terms)+'</td><td>'+escape(lcOpenDate)+'</td></tr>'
-  ).join('');
-  $('outstandingTable').hidden=result.unpaidInvoices.length===0;
+  $('outstandingInvoices').innerHTML=renderOutstandingBuyers(result.unpaidInvoices);
+  $('outstandingInvoices').hidden=result.unpaidInvoices.length===0;
   $('outstandingEmpty').hidden=result.unpaidInvoices.length>0;
   details.scrollIntoView({block:'nearest'});
 });
+}
+function renderOutstandingBuyers(invoices){
+  const groups=new Map();
+  for(const invoice of invoices){
+    const company=invoice.buyer.replace(/\s*\(\s*A\s*\/\s*C\.?\s+[^)]*\)\s*$/i,'').trim();
+    const key=company.toUpperCase().replace(/\./g,'').replace(/\bPVT\b/g,'PRIVATE').replace(/\bLTD\b/g,'LIMITED').replace(/\s+/g,' ');
+    if(!groups.has(key))groups.set(key,{company,cents:0,invoices:[],terms:new Map()});
+    const group=groups.get(key);
+    group.cents+=invoice.cents;
+    group.invoices.push(invoice);
+    const term=invoice.terms==='—'?'Unspecified':invoice.terms.split(/\s+/)[0];
+    group.terms.set(term,(group.terms.get(term)||0)+1);
+  }
+
+  return [...groups.values()].sort((a,b)=>b.cents-a.cents||a.company.localeCompare(b.company)).map(group=>{
+    const breakdown=[...group.terms].map(([term,count])=>count+' '+term).join(' · ');
+    const rows=group.invoices.map(({buyer,reference,cents,terms,lcOpenDate})=>
+      '<tr><td>'+escape(reference)+(buyer!==group.company?'<br><small>'+escape(buyer)+'</small>':'')+'</td><td>'+fmt(cents/100)+'</td><td>'+escape(terms)+'</td><td>'+escape(lcOpenDate)+'</td></tr>'
+    ).join('');
+    return '<details class="outstanding-buyer"><summary><span>'+escape(group.company)+'</span><strong>'+fmt(group.cents/100)+'</strong></summary>'+
+      '<p class="muted">'+group.invoices.length+' unpaid '+(group.invoices.length===1?'invoice':'invoices')+' · '+escape(breakdown)+'</p>'+
+      '<div class="scroll"><table aria-label="'+escape(group.company)+' outstanding invoices"><thead><tr><th>Invoice</th><th>Balance due (USD)</th><th>Payment Terms</th><th>LC Open Date</th></tr></thead><tbody>'+rows+'</tbody></table></div></details>';
+  }).join('');
 }
 function estimatedDaAcceptance(s,arrival,receipts){
   if(String(s.payment_terms||'').trim().toUpperCase()!=='DA'||s.acceptance_date||receipts.length||!arrival)return null;
